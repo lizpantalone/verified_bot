@@ -1,23 +1,11 @@
 require "test_helper"
 
-class VerifiedBot::VerifyIpJobTest < ActiveJob::TestCase
+class VerifyIpJobTest < VerifiedBotTestCase
   IP = "66.249.66.1".freeze
 
-  setup do
-    @original_cache = VerifiedBot.config.cache
-    @store = ActiveSupport::Cache::MemoryStore.new
-    store = @store
-    VerifiedBot.config.cache = store
-    @original_check = VerifiedBot.method(:check_dns)
-  end
-
-  teardown do
-    VerifiedBot.config.cache = @original_cache
-    VerifiedBot.define_singleton_method(:check_dns, @original_check)
-  end
 
   def stub_check(result = nil, &block)
-    VerifiedBot.define_singleton_method(:check_dns) { |_ip, _engine| block ? block.call : result }
+    stub_singleton(VerifiedBot, :check_dns) { |_ip, _engine| block ? block.call : result }
   end
 
   test "caches a verified IP so verified? answers true" do

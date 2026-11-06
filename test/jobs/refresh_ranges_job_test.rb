@@ -1,23 +1,9 @@
 require "test_helper"
 
-class VerifiedBot::RefreshRangesJobTest < ActiveJob::TestCase
-  setup do
-    @original_cache = VerifiedBot.config.cache
-    @store = ActiveSupport::Cache::MemoryStore.new
-    store = @store
-    VerifiedBot.config.cache = store
-    @original_refresh = VerifiedBot.method(:refresh_ranges)
-    @refreshed = []
-  end
-
-  teardown do
-    VerifiedBot.config.cache = @original_cache
-    VerifiedBot.define_singleton_method(:refresh_ranges, @original_refresh)
-  end
-
+class RefreshRangesJobTest < VerifiedBotTestCase
   def stub_refresh(failing: [])
-    refreshed = @refreshed
-    VerifiedBot.define_singleton_method(:refresh_ranges) do |engine|
+    refreshed = @refreshed = []
+    stub_singleton(VerifiedBot, :refresh_ranges) do |engine|
       refreshed << engine
       raise VerifiedBot::LookupError, "#{engine} down" if failing.include?(engine)
 

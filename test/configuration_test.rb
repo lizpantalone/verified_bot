@@ -1,8 +1,6 @@
 require "test_helper"
 
 class ConfigurationTest < VerifiedBotTestCase
-  include ActiveJob::TestHelper
-
   setup do
     @cache = VerifiedBot.config.cache
     @queue = VerifiedBot.config.queue

@@ -1,8 +1,6 @@
 require "test_helper"
 
 class VerifiedBotTest < VerifiedBotTestCase
-  include ActiveJob::TestHelper
-
   GOOGLEBOT_UA = "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)".freeze
   GOOD_IP = "66.249.66.1".freeze
 
@@ -25,20 +23,9 @@ class VerifiedBotTest < VerifiedBotTestCase
     end
   end
 
-  setup do
-    @original_cache = VerifiedBot.config.cache
-    store = ActiveSupport::Cache::MemoryStore.new
-    VerifiedBot.config.cache = store
-    @original_open = Resolv::DNS.method(:open)
-  end
-
-  teardown do
-    VerifiedBot.config.cache = @original_cache
-    Resolv::DNS.define_singleton_method(:open, @original_open)
-  end
 
   def with_dns(fake)
-    Resolv::DNS.define_singleton_method(:open) { |&blk| blk.call(fake) }
+    stub_singleton(Resolv::DNS, :open) { |&blk| blk.call(fake) }
   end
 
   def genuine_google

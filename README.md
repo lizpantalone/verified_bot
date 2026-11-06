@@ -89,8 +89,13 @@ VerifiedBot.refresh_ranges("gptbot")   # => prefix count
 
 ```
 bundle install
-bundle exec rake test
+bundle exec rake test        # offline, runs in any order
+bundle exec rake test:live   # hits the real crawler feeds; run it before a release
+RAILS_VERSION=7.1 bundle update activesupport activejob railties && bundle exec rake test
 ```
+
+CI runs Ruby 3.2-3.4 against Rails 7.1-8.1. The live task catches a moved feed
+URL or changed format.
 
 ## License
 

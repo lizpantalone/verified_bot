@@ -3,33 +3,15 @@ require "test_helper"
 # Verification by published IP ranges (OpenAI, Perplexity, Common Crawl,
 # DuckDuckGo, Anthropic).
 class VerifiedBotRangesTest < VerifiedBotTestCase
-  include ActiveJob::TestHelper
-
   GPTBOT_UA = "Mozilla/5.0 (compatible; GPTBot/1.2; +https://openai.com/gptbot)".freeze
 
-  setup do
-    @original_cache = VerifiedBot.config.cache
-    @store = ActiveSupport::Cache::MemoryStore.new
-    store = @store
-    VerifiedBot.config.cache = store
-    VerifiedBot.reset_range_memo!
-    @original_fetch = VerifiedBot.method(:fetch_json)
-    @original_start = Net::HTTP.method(:start)
-  end
-
-  teardown do
-    VerifiedBot.config.cache = @original_cache
-    VerifiedBot.define_singleton_method(:fetch_json, @original_fetch)
-    Net::HTTP.define_singleton_method(:start, @original_start)
-    VerifiedBot.reset_range_memo!
-  end
 
   def cache_ranges(engine, prefixes, fetched_at: 1.0)
     @store.write(VerifiedBot.ranges_key(engine), { "fetched_at" => fetched_at, "prefixes" => prefixes })
   end
 
   def stub_json(json)
-    VerifiedBot.define_singleton_method(:fetch_json) { |_url| json }
+    stub_singleton(VerifiedBot, :fetch_json) { |_url| json }
   end
 
   def prefixes_json(*cidrs)
@@ -177,7 +159,7 @@ class VerifiedBotRangesTest < VerifiedBotTestCase
       res.instance_variable_set(:@read, true)
       res
     end
-    Net::HTTP.define_singleton_method(:start) { |*_a, **_k, &blk| blk.call(http) }
+    stub_singleton(Net::HTTP, :start) { |*_a, **_k, &blk| blk.call(http) }
   end
 
   test "fetch_json parses a 200 JSON body" do
