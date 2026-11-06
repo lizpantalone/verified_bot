@@ -32,6 +32,15 @@ class VerifiedBotRangesTest < VerifiedBotTestCase
     assert_not VerifiedBot.verified?("203.0.113.9", GPTBOT_UA)
   end
 
+  test "Ahrefs is verified by its published ranges, for both of its user agents" do
+    cache_ranges("ahrefs", [ "15.235.27.0/24" ])
+    bot = "Mozilla/5.0 (compatible; AhrefsBot/7.0; +http://ahrefs.com/robot/)"
+    audit = "Mozilla/5.0 (compatible; AhrefsSiteAudit/6.1; +http://ahrefs.com/robot/)"
+    assert VerifiedBot.verified?("15.235.27.9", bot)
+    assert VerifiedBot.verified?("15.235.27.9", audit)
+    assert_not VerifiedBot.verified?("203.0.113.9", bot)
+  end
+
   test "range boundaries are inclusive on the edges and exclusive just outside" do
     cache_ranges("gptbot", [ "132.196.86.0/24" ])
     assert VerifiedBot.verified?("132.196.86.0", GPTBOT_UA)
@@ -119,6 +128,7 @@ class VerifiedBotRangesTest < VerifiedBotTestCase
     assert_includes VerifiedBot.range_engines, "gptbot"
     assert_includes VerifiedBot.range_engines, "duckduckbot"
     assert_includes VerifiedBot.range_engines, "anthropic"
+    assert_includes VerifiedBot.range_engines, "ahrefs"
     assert_not_includes VerifiedBot.range_engines, "googlebot"
   end
 

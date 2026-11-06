@@ -40,7 +40,9 @@ class VerifiedBotTest < VerifiedBotTestCase
       "Mozilla/5.0 (compatible; DuckDuckBot/1.1)" => "duckduckbot",
       "Mozilla/5.0 (compatible; ClaudeBot/1.0; +claudebot@anthropic.com)" => "anthropic",
       "Mozilla/5.0 (compatible; Claude-SearchBot/1.0)" => "anthropic",
-      "anthropic-ai/1.0" => "anthropic"
+      "anthropic-ai/1.0" => "anthropic",
+      "Mozilla/5.0 (compatible; AhrefsBot/7.0; +http://ahrefs.com/robot/)" => "ahrefs",
+      "Mozilla/5.0 (compatible; AhrefsSiteAudit/6.1; +http://ahrefs.com/robot/)" => "ahrefs"
     }.each { |ua, engine| assert_equal engine, VerifiedBot.claimed_engine(ua), ua }
   end
 

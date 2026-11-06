@@ -14,8 +14,8 @@
 # Two verification methods, matching what each crawler publishes:
 #
 #   * reverse DNS (Google, Bing, Baidu, Yandex, Apple): see `check_dns`.
-#   * published IP ranges (OpenAI, Perplexity, Common Crawl, DuckDuckGo, and
-#     Anthropic): the request IP must fall inside the ranges the operator
+#   * published IP ranges (OpenAI, Perplexity, Common Crawl, DuckDuckGo,
+#     Anthropic, and Ahrefs): the request IP must fall inside the ranges the operator
 #     publishes. Ranges are fetched by RefreshRangesJob and cached, so
 #     `verified?` never does network I/O.
 #
@@ -40,7 +40,8 @@ module VerifiedBot
     "anthropic" => {
       ua: /Claude-?SearchBot|ClaudeBot|Claude-User|anthropic-ai/i,
       ranges_url: "https://claude.com/crawling/bots.json"
-    }
+    },
+    "ahrefs" => { ua: /AhrefsBot|AhrefsSiteAudit/i, ranges_url: "https://api.ahrefs.com/v3/public/crawler-ip-ranges" }
   }.freeze
 
   RANGES_TTL = 3.days # refreshed daily; survives two failed refreshes

@@ -2,6 +2,7 @@
 
 ## 0.1.0
 
+- Ahrefs (AhrefsBot, AhrefsSiteAudit) verified by its published IP ranges.
 - `max_verifications_per_minute` cap (default 100); NullStore disables verification, per-process MemoryStore in production is warned about.
 - Own DNS client: timeouts, SERVFAIL and REFUSED are errors, never cached as "not a crawler"; TCP fallback; spoof checks; `config.nameservers`, `config.dns_timeouts`.
 - Dual-stack `::ffff:a.b.c.d` clients match their IPv4 PTR/A records.

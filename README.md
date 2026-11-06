@@ -8,8 +8,8 @@ Two methods, matching what each operator publishes:
 
 - **Reverse DNS** (forward-confirmed): Googlebot, Bingbot, Baidu, Yandex, Applebot.
 - **Published IP ranges**: GPTBot, OAI-SearchBot, ChatGPT-User, PerplexityBot,
-  Perplexity-User, CCBot, DuckDuckBot, and Anthropic (ClaudeBot, Claude-SearchBot,
-  Claude-User).
+  Perplexity-User, CCBot, DuckDuckBot, Anthropic (ClaudeBot, Claude-SearchBot,
+  Claude-User), and Ahrefs (AhrefsBot, AhrefsSiteAudit).
 
 Crawlers that publish neither (Bytespider, Meta's crawlers) get no bypass.
 
