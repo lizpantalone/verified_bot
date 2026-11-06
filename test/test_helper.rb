@@ -43,6 +43,7 @@ class VerifiedBotTestCase < ActiveSupport::TestCase
     @store = ActiveSupport::Cache::MemoryStore.new
     VerifiedBot.config.cache = @store
     VerifiedBot.reset_range_memo!
+    VerifiedBot.reset_warnings!
     @stubs = []
   end
 
@@ -53,6 +54,7 @@ class VerifiedBotTestCase < ActiveSupport::TestCase
     end
     VerifiedBot.instance_variable_set(:@config, @saved_config)
     VerifiedBot.reset_range_memo!
+    VerifiedBot.reset_warnings!
   end
 
   def with_dns(fake)

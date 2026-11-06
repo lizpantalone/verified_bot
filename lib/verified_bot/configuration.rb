@@ -27,6 +27,13 @@ module VerifiedBot
     # per attempt. Default: two attempts of 2 seconds.
     attr_accessor :dns_timeouts
 
+    # Cap on new verification jobs per minute, across all IPs (nil = no cap).
+    # Each unseen IP that claims to be a crawler costs one job, so a scraper
+    # rotating IPs behind a Googlebot User-Agent could otherwise enqueue one
+    # job per request. Over the cap, requests are simply treated as unverified
+    # and a real crawler is verified on a later request.
+    attr_accessor :max_verifications_per_minute
+
     def initialize
       @cache = ActiveSupport::Cache::MemoryStore.new
       @logger = nil
@@ -35,6 +42,7 @@ module VerifiedBot
       @engines = {}
       @nameservers = nil
       @dns_timeouts = [ 2, 2 ]
+      @max_verifications_per_minute = 100
     end
   end
 end

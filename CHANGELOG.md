@@ -2,6 +2,7 @@
 
 ## 0.1.0
 
+- `max_verifications_per_minute` cap (default 100); NullStore disables verification, per-process MemoryStore in production is warned about.
 - Own DNS client: timeouts, SERVFAIL and REFUSED are errors, never cached as "not a crawler"; TCP fallback; spoof checks; `config.nameservers`, `config.dns_timeouts`.
 - Dual-stack `::ffff:a.b.c.d` clients match their IPv4 PTR/A records.
 - Tested on Ruby 3.3/3.4 and Rails 7.1-8.1; live-feed check via `rake test:live`.

@@ -138,6 +138,11 @@ module VerifiedBot
       @range_memo = {}
     end
 
+    # Forgets which one-time warnings were logged (used by tests).
+    def reset_warnings!
+      @warned = {}
+    end
+
     def record(ip, engine, verified)
       cache.write(cache_key(ip, engine), verified, expires_in: verified ? VERIFIED_TTL : REJECTED_TTL)
     end
@@ -167,11 +172,60 @@ module VerifiedBot
     private
 
     def enqueue_verification(ip, engine)
+      return unless cache_usable?
+
       # `unless_exist` makes the first request win, so a burst of requests from
       # one unverified IP enqueues a single job rather than one each.
       return unless cache.write(pending_key(ip, engine), true, expires_in: PENDING_TTL, unless_exist: true)
 
+      unless within_budget?
+        clear_pending(ip, engine) # let a later request try again
+        return
+      end
+
       VerifyIpJob.perform_later(ip.to_s, engine)
+    end
+
+    # Counts new verification jobs in one-minute buckets. Only requests that
+    # won the pending marker are counted, so repeats from one IP cost one.
+    def within_budget?
+      limit = config.max_verifications_per_minute
+      return true if limit.nil?
+
+      bucket = "verified_bot:budget:#{Time.now.to_i / 60}"
+      count = cache.increment(bucket, 1, expires_in: 2.minutes)
+      count ||= cache.write(bucket, 1, expires_in: 2.minutes, unless_exist: true) ? 1 : cache.increment(bucket, 1, expires_in: 2.minutes)
+      return false if count.nil?
+
+      config.logger&.warn("[VerifiedBot] over #{limit} new verifications/minute; treating further unverified crawlers as unverified") if count == limit + 1
+      count <= limit
+    end
+
+    # Verification needs a cache shared with the job workers. A NullStore can
+    # never hold the pending marker or a verdict, so every request would enqueue
+    # a job and none would ever be answered.
+    def cache_usable?
+      store = cache
+      if store.is_a?(ActiveSupport::Cache::NullStore)
+        warn_once(:null_store, "cache is a NullStore: crawler verification is disabled (set VerifiedBot.config.cache to a shared store)")
+        return false
+      end
+      if store.is_a?(ActiveSupport::Cache::MemoryStore) && production?
+        warn_once(:memory_store, "cache is a per-process MemoryStore: job workers cannot share verdicts with web processes, so crawlers will never verify")
+      end
+      true
+    end
+
+    def production?
+      defined?(::Rails) && ::Rails.respond_to?(:env) && ::Rails.env.production?
+    end
+
+    def warn_once(key, message)
+      @warned ||= {}
+      return if @warned[key]
+
+      @warned[key] = true
+      config.logger&.warn("[VerifiedBot] #{message}")
     end
 
     def in_published_ranges?(ip, engine)
@@ -205,6 +259,7 @@ module VerifiedBot
     end
 
     def enqueue_range_refresh(engine)
+      return unless cache_usable?
       return unless cache.write(ranges_pending_key(engine), true, expires_in: PENDING_TTL, unless_exist: true)
 
       RefreshRangesJob.perform_later(engine)

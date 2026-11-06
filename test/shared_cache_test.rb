@@ -54,7 +54,7 @@ class SharedCacheTest < VerifiedBotTestCase
   def race_processes(store_factory)
     log = Tempfile.new("enqueues")
     gate_read, gate_write = IO.pipe
-    pids = Array.new(PROCESSES) do
+    pids = Array.new(PROCESSES) do |index|
       fork do
         gate_write.close
         gate_read.read # blocks until the parent closes the pipe: a simultaneous start
@@ -65,7 +65,7 @@ class SharedCacheTest < VerifiedBotTestCase
           klass.queue_adapter = adapter
         end
         VerifiedBot.config.cache = store_factory.call
-        yield
+        yield index
         exit!(0)
       rescue Exception => e # rubocop:disable Lint/RescueException
         warn "child failed: #{e.class}: #{e.message}"
@@ -96,6 +96,19 @@ class SharedCacheTest < VerifiedBotTestCase
         VerifiedBot.verified?("20.171.206.9", "GPTBot/1.2")
       end
       assert_equal [ "VerifiedBot::RefreshRangesJob" ], enqueued
+    end
+  end
+
+  test "Redis: the per-minute cap holds across separate processes" do
+    with_redis do |url|
+      VerifiedBot.config.max_verifications_per_minute = 5
+      ips = Array.new(PROCESSES) { |i| "203.0.113.#{i + 1}" }
+      gate_ips = ips.each_with_index.to_h
+      enqueued = race_processes(-> { ActiveSupport::Cache::RedisCacheStore.new(url: url) }) do |index|
+        VerifiedBot.config.max_verifications_per_minute = 5
+        VerifiedBot.verified?(gate_ips.key(index), "Googlebot/2.1")
+      end
+      assert_equal 5, enqueued.size
     end
   end
 
