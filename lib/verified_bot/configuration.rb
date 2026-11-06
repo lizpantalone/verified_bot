@@ -23,6 +23,10 @@ module VerifiedBot
     # system resolvers. Useful for pointing at a fast local cache or 1.1.1.1.
     attr_accessor :nameservers
 
+    # Seconds to wait for each reverse-DNS attempt per nameserver: one entry
+    # per attempt. Default: two attempts of 2 seconds.
+    attr_accessor :dns_timeouts
+
     def initialize
       @cache = ActiveSupport::Cache::MemoryStore.new
       @logger = nil
@@ -30,6 +34,7 @@ module VerifiedBot
       @user_agent = "verified_bot/#{VERSION}"
       @engines = {}
       @nameservers = nil
+      @dns_timeouts = [ 2, 2 ]
     end
   end
 end

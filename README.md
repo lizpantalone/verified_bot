@@ -26,6 +26,16 @@ Crawlers that publish neither (Bytespider, Meta's crawlers) get no bypass.
 
 It never raises: a cache failure returns `false`.
 
+## DNS handling
+
+Ruby's `Resolv` reports a timeout or SERVFAIL as "no such record", which would
+mark a real crawler as fake whenever a nameserver hiccups. So the gem has a
+small DNS client (`VerifiedBot::DNS`): only NXDOMAIN or an empty answer means
+"no record". A timeout, SERVFAIL, REFUSED or unreadable reply raises
+`VerifiedBot::LookupError`, nothing is cached, and the job retries. It falls
+back to TCP when a UDP answer is truncated, ignores replies with the wrong ID
+or source, and tries each nameserver in turn.
+
 ## Setup
 
 ```ruby
@@ -42,6 +52,7 @@ VerifiedBot.configure do |c|
   c.queue = :low                  # ActiveJob queue, default :default
   c.user_agent = "mysite-bot-verifier" # sent when downloading range files
   c.nameservers = [["127.0.0.1", 53]] # reverse-DNS resolvers; default: the system's
+  c.dns_timeouts = [2, 2]         # seconds per attempt, per nameserver
   c.engines = {                   # add or override engines
     "mybot" => { ua: /MyBot/i, ranges_url: "https://example.com/ips.json" }
     # or: { ua: /MyBot/i, domains: %w[mybot.example] }  # reverse DNS
@@ -90,9 +101,9 @@ VerifiedBot.refresh_ranges("gptbot")   # => prefix count
 
 ```
 bundle install
-bundle exec rake test        # offline, runs in any order
+bundle exec rake test        # offline, any order; Redis cases need redis-server
 bundle exec rake test:live   # hits the real crawler feeds; run it before a release
-RAILS_VERSION=7.1 bundle update activesupport activejob railties && bundle exec rake test
+RAILS_VERSION=7.1 bundle update activesupport activejob railties connection_pool && bundle exec rake test
 ```
 
 The suite runs the real `Resolv` and `Net::HTTP` against a local DNS server and a

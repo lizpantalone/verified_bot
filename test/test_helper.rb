@@ -11,6 +11,26 @@ require "verified_bot"
 ActiveJob::Base.queue_adapter = :test
 ActiveJob::Base.logger = Logger.new(nil)
 
+# Scripted DNS: ptr maps ip => hostname, forward maps hostname => [ips];
+# `fail: true` simulates a nameserver that can't be reached.
+class FakeDNS
+  def initialize(ptr: {}, forward: {}, fail: false)
+    @ptr, @forward, @fail = ptr, forward, fail
+  end
+
+  def ptr(ip)
+    raise VerifiedBot::LookupError, "timed out" if @fail
+
+    @ptr[ip.to_s]
+  end
+
+  def addresses(host)
+    raise VerifiedBot::LookupError, "timed out" if @fail
+
+    @forward.fetch(host, [])
+  end
+end
+
 # Every test starts from a fresh config, an empty cache and no parsed-range
 # memo, and any stub it installs is undone afterwards, so tests pass in any
 # order and leave nothing behind.
@@ -33,6 +53,11 @@ class VerifiedBotTestCase < ActiveSupport::TestCase
     end
     VerifiedBot.instance_variable_set(:@config, @saved_config)
     VerifiedBot.reset_range_memo!
+  end
+
+  def with_dns(fake)
+    stub_singleton(VerifiedBot::DNS, :ptr) { |ip| fake.ptr(ip) }
+    stub_singleton(VerifiedBot::DNS, :addresses) { |host| fake.addresses(host) }
   end
 
   # Replace a singleton method for the length of one test, then restore it.

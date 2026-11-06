@@ -106,13 +106,13 @@ module VerifiedBot
     # transient timeout as "this is a fake bot").
     def check_dns(ip, engine)
       domains = engines.fetch(engine)[:domains]
-      host = reverse_lookup(ip)
+      host = DNS.ptr(ip)
       return false if host.nil?
 
       host = host.downcase.delete_suffix(".")
       return false unless domains.any? { |d| host == d || host.end_with?(".#{d}") }
 
-      forward_lookup(host).include?(normalize(ip))
+      DNS.addresses(host).map { |a| normalize(a) }.include?(normalize(ip))
     end
 
     # Engines verified by published ranges (the refresh job's work list).
@@ -249,47 +249,11 @@ module VerifiedBot
       raise LookupError, "invalid prefix: #{e.message[0, 80]}"
     end
 
-    def reverse_lookup(ip)
-      resolver { |r| r.getname(ip.to_s).to_s }
-    rescue Resolv::ResolvError => e
-      raise LookupError, "reverse lookup timed out for #{ip}" if timeout?(e)
-
-      nil # no PTR record: a definitive "not this engine"
-    rescue Timeout::Error, SystemCallError, IOError => e
-      raise LookupError, "reverse lookup failed for #{ip}: #{e.class}"
-    end
-
-    def forward_lookup(host)
-      resolver { |r| r.getaddresses(host).map { |a| normalize(a) } }
-    rescue Resolv::ResolvError => e
-      raise LookupError, "forward lookup timed out for #{host}" if timeout?(e)
-
-      []
-    rescue Timeout::Error, SystemCallError, IOError => e
-      raise LookupError, "forward lookup failed for #{host}: #{e.class}"
-    end
-
-    # raise_timeout_errors makes Resolv report a timeout as an error. Without
-    # it a dead nameserver looks exactly like "no such record", and a real
-    # crawler would be cached as fake.
-    #
-    # Passing any options makes Resolv skip the system resolver settings, so
-    # they are loaded explicitly; a bare options hash would have no nameservers
-    # and every lookup would time out.
-    def resolver
-      options = Resolv::DNS::Config.default_config_hash.merge(raise_timeout_errors: true)
-      options[:nameserver_port] = config.nameservers if config.nameservers
-      options.delete(:nameserver) if config.nameservers
-      Resolv::DNS.open(options) { |dns| dns.timeouts = [ 2, 2 ]; yield dns }
-    end
-
-    def timeout?(error)
-      error.message.match?(/timeout/i)
-    end
-
-    # Compare IPs in canonical form so "2001:db8::1" and "2001:0db8::1" match.
+    # Compare IPs in canonical form so "2001:db8::1" and "2001:0db8::1" match,
+    # and a dual-stack "::ffff:1.2.3.4" equals "1.2.3.4".
     def normalize(addr)
-      IPAddr.new(addr.to_s).to_s
+      ip = IPAddr.new(addr.to_s)
+      (ip.ipv4_mapped? ? ip.native : ip).to_s
     rescue IPAddr::InvalidAddressError
       addr.to_s
     end

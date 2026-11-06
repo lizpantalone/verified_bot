@@ -12,5 +12,6 @@ require "active_job"
 require_relative "verified_bot/version"
 require_relative "verified_bot/configuration"
 require_relative "verified_bot/core"
+require_relative "verified_bot/dns"
 require_relative "verified_bot/jobs"
 require_relative "verified_bot/railtie" if defined?(Rails::Railtie)

@@ -4,30 +4,6 @@ class VerifiedBotTest < VerifiedBotTestCase
   GOOGLEBOT_UA = "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)".freeze
   GOOD_IP = "66.249.66.1".freeze
 
-  # Scripted resolver: ptr maps ip => hostname, forward maps hostname => [ips].
-  class FakeDNS
-    attr_writer :timeouts
-
-    def initialize(ptr: {}, forward: {}, raise_on: nil)
-      @ptr, @forward, @raise_on = ptr, forward, raise_on
-    end
-
-    def getname(ip)
-      raise @raise_on if @raise_on == Timeout::Error
-      @ptr.fetch(ip.to_s) { raise Resolv::ResolvError, "no PTR" }
-    end
-
-    def getaddresses(host)
-      raise @raise_on if @raise_on == Timeout::Error
-      @forward.fetch(host, [])
-    end
-  end
-
-
-  def with_dns(fake)
-    stub_singleton(Resolv::DNS, :open) { |*_args, &blk| blk.call(fake) }
-  end
-
   def genuine_google
     FakeDNS.new(
       ptr: { GOOD_IP => "crawl-66-249-66-1.googlebot.com" },
@@ -168,7 +144,7 @@ class VerifiedBotTest < VerifiedBotTestCase
   end
 
   test "check_dns raises LookupError on a DNS timeout instead of answering false" do
-    with_dns(FakeDNS.new(raise_on: Timeout::Error))
+    with_dns(FakeDNS.new(fail: true))
     assert_raises(VerifiedBot::LookupError) { VerifiedBot.check_dns(GOOD_IP, "googlebot") }
   end
 end

@@ -5,11 +5,7 @@ class EndToEndTest < VerifiedBotTestCase
   GOOGLEBOT_UA = "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)".freeze
 
   def fake_dns(ptr:, forward:)
-    dns = Object.new
-    dns.define_singleton_method(:timeouts=) { |_| }
-    dns.define_singleton_method(:getname) { |ip| ptr.fetch(ip.to_s) { raise Resolv::ResolvError } }
-    dns.define_singleton_method(:getaddresses) { |host| forward.fetch(host, []) }
-    stub_singleton(Resolv::DNS, :open) { |*_args, &blk| blk.call(dns) }
+    with_dns(FakeDNS.new(ptr: ptr, forward: forward))
   end
 
   test "a real Googlebot is throttled once, then verified after the job runs" do
