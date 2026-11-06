@@ -34,7 +34,9 @@ Every unseen IP that claims to be a crawler costs one verification job. So:
   enqueued per minute, across all IPs. A scraper rotating IPs behind a
   `Googlebot` User-Agent can't flood your queue; over the cap, requests are just
   treated as unverified, and a real crawler is verified on a later request.
-  Repeat requests from one IP cost one slot, and cache hits cost none.
+  Repeat requests from one IP cost one slot, and cache hits cost none. The cap
+  relies only on the cache's atomic `unless_exist` write, so it is exact even on
+  stores whose `increment` isn't atomic (Solid Cache's isn't).
 - **Unusable caches.** With a `NullStore` nothing can be remembered, so
   verification is disabled (and logged once) instead of enqueueing a job per
   request. A per-process `MemoryStore` in production is logged once too: job

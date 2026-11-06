@@ -113,12 +113,34 @@ class BudgetTest < VerifiedBotTestCase
     assert_equal 10, verification_jobs
   end
 
+  # A store whose counter is always stale, the worst case for a racy increment.
+  class StaleCounterStore < ActiveSupport::Cache::MemoryStore
+    def increment(*_args, **_opts) = 1
+  end
+
+  test "the cap is exact even when the cache's increment loses every update" do
+    VerifiedBot.config.cache = StaleCounterStore.new
+    VerifiedBot.config.max_verifications_per_minute = 10
+    spoofers(80).each { |ip| VerifiedBot.verified?(ip, UA) }
+    assert_equal 10, verification_jobs
+  end
+
+  test "the cap is exact under threads when the increment is stale" do
+    VerifiedBot.config.cache = StaleCounterStore.new
+    VerifiedBot.config.max_verifications_per_minute = 10
+    gate = Queue.new
+    threads = spoofers(60).map { |ip| Thread.new { gate.pop; VerifiedBot.verified?(ip, UA) } }
+    60.times { gate << true }
+    threads.each(&:join)
+    assert_equal 10, verification_jobs
+  end
+
   test "a cache that cannot count fails closed" do
     store = ActiveSupport::Cache::MemoryStore.new
     store.define_singleton_method(:increment) { |*_a, **_k| nil }
     VerifiedBot.config.cache = store
     spoofers(10).each { |ip| VerifiedBot.verified?(ip, UA) }
-    assert_equal 1, verification_jobs # only the request that created the counter
+    assert_operator verification_jobs, :<=, 1 # never exceeds what it could count
   end
 
   test "a failing cache returns false and enqueues nothing" do

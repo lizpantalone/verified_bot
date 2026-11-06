@@ -186,19 +186,36 @@ module VerifiedBot
       VerifyIpJob.perform_later(ip.to_s, engine)
     end
 
-    # Counts new verification jobs in one-minute buckets. Only requests that
-    # won the pending marker are counted, so repeats from one IP cost one.
+    # Grants at most `limit` new verification jobs per one-minute bucket.
+    #
+    # The bucket has `limit` numbered slots and each job must claim one with an
+    # atomic `unless_exist` write, so the cap holds exactly even on a store
+    # whose `increment` loses updates under concurrency (Solid Cache's does).
+    # The counter only says where to start looking, so a stale value costs a
+    # few extra probes, never an extra job. Only requests that won the pending
+    # marker are counted, so repeats from one IP cost one slot.
     def within_budget?
       limit = config.max_verifications_per_minute
       return true if limit.nil?
 
       bucket = "verified_bot:budget:#{Time.now.to_i / 60}"
-      count = cache.increment(bucket, 1, expires_in: 2.minutes)
-      count ||= cache.write(bucket, 1, expires_in: 2.minutes, unless_exist: true) ? 1 : cache.increment(bucket, 1, expires_in: 2.minutes)
-      return false if count.nil?
+      slot = next_slot_hint(bucket)
+      return false if slot.nil?
 
-      config.logger&.warn("[VerifiedBot] over #{limit} new verifications/minute; treating further unverified crawlers as unverified") if count == limit + 1
-      count <= limit
+      while slot <= limit
+        return true if cache.write("#{bucket}:slot:#{slot}", true, expires_in: 2.minutes, unless_exist: true)
+
+        slot += 1
+      end
+      if cache.write("#{bucket}:logged", true, expires_in: 2.minutes, unless_exist: true)
+        config.logger&.warn("[VerifiedBot] over #{limit} new verifications/minute; treating further unverified crawlers as unverified")
+      end
+      false
+    end
+
+    def next_slot_hint(bucket)
+      count = cache.increment(bucket, 1, expires_in: 2.minutes)
+      count || (cache.write(bucket, 1, expires_in: 2.minutes, unless_exist: true) ? 1 : cache.increment(bucket, 1, expires_in: 2.minutes))
     end
 
     # Verification needs a cache shared with the job workers. A NullStore can
