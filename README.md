@@ -35,8 +35,9 @@ Every unseen IP that claims to be a crawler costs one verification job. So:
   `Googlebot` User-Agent can't flood your queue; over the cap, requests are just
   treated as unverified, and a real crawler is verified on a later request.
   Repeat requests from one IP cost one slot, and cache hits cost none. The cap
-  relies only on the cache's atomic `unless_exist` write, so it is exact even on
-  stores whose `increment` isn't atomic (Solid Cache's isn't).
+  claims numbered slots with `unless_exist` writes rather than trusting
+  `increment`, which loses updates on some stores. How exact it is depends on
+  the cache store; see the table under Setup.
 - **Unusable caches.** With a `NullStore` nothing can be remembered, so
   verification is disabled (and logged once) instead of enqueueing a job per
   request. A per-process `MemoryStore` in production is logged once too: job
@@ -59,8 +60,23 @@ gem "verified_bot", github: "lizpantalone/verified_bot"
 ```
 
 In Rails, the cache and logger default to `Rails.cache` / `Rails.logger`. The
-cache must be shared by your web and job processes (Solid Cache, Redis, Memcached;
-not a per-process memory store). Elsewhere, set them yourself.
+cache must be shared by your web and job processes. Elsewhere, set them yourself.
+
+How exactly the "one job per IP" dedupe and the per-minute cap hold depends on
+the store's `unless_exist` write:
+
+| Store | Shared across processes | Dedupe and cap |
+| --- | --- | --- |
+| Redis | yes | exact (tested against a real Redis) |
+| Memcached | yes | exact by design (`add`); not tested here |
+| Solid Cache | yes | best effort: `unless_exist` locks an existing row, and a key that doesn't exist yet has none, so simultaneous requests can each win (measured: 4 jobs instead of 1, 12-13 instead of a cap of 10) |
+| `FileStore` | yes | best effort, same reason |
+| `MemoryStore` | no: job workers can't share verdicts, so crawlers never verify (warned about in production) | n/a |
+| `NullStore` | n/a | verification disabled |
+
+Best effort is still safe: the overshoot is limited to requests arriving in the
+same instant (roughly your concurrent threads), never a flood, and an extra
+verification job is idempotent. For an exact cap use Redis or Memcached.
 
 ```ruby
 # config/initializers/verified_bot.rb (all optional)
