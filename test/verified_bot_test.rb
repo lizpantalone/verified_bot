@@ -25,7 +25,7 @@ class VerifiedBotTest < VerifiedBotTestCase
 
 
   def with_dns(fake)
-    stub_singleton(Resolv::DNS, :open) { |&blk| blk.call(fake) }
+    stub_singleton(Resolv::DNS, :open) { |*_args, &blk| blk.call(fake) }
   end
 
   def genuine_google

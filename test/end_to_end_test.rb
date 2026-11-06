@@ -9,7 +9,7 @@ class EndToEndTest < VerifiedBotTestCase
     dns.define_singleton_method(:timeouts=) { |_| }
     dns.define_singleton_method(:getname) { |ip| ptr.fetch(ip.to_s) { raise Resolv::ResolvError } }
     dns.define_singleton_method(:getaddresses) { |host| forward.fetch(host, []) }
-    stub_singleton(Resolv::DNS, :open) { |&blk| blk.call(dns) }
+    stub_singleton(Resolv::DNS, :open) { |*_args, &blk| blk.call(dns) }
   end
 
   test "a real Googlebot is throttled once, then verified after the job runs" do

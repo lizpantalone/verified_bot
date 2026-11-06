@@ -19,12 +19,17 @@ module VerifiedBot
     #   "mybot" => { ua: /MyBot/i, ranges_url: "https://.../ips.json" } # IP ranges
     attr_accessor :engines
 
+    # Resolvers for the reverse-DNS check, as [[host, port], ...]. Default: the
+    # system resolvers. Useful for pointing at a fast local cache or 1.1.1.1.
+    attr_accessor :nameservers
+
     def initialize
       @cache = ActiveSupport::Cache::MemoryStore.new
       @logger = nil
       @queue = :default
       @user_agent = "verified_bot/#{VERSION}"
       @engines = {}
+      @nameservers = nil
     end
   end
 end

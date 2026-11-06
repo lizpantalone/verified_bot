@@ -41,6 +41,7 @@ not a per-process memory store). Elsewhere, set them yourself.
 VerifiedBot.configure do |c|
   c.queue = :low                  # ActiveJob queue, default :default
   c.user_agent = "mysite-bot-verifier" # sent when downloading range files
+  c.nameservers = [["127.0.0.1", 53]] # reverse-DNS resolvers; default: the system's
   c.engines = {                   # add or override engines
     "mybot" => { ua: /MyBot/i, ranges_url: "https://example.com/ips.json" }
     # or: { ua: /MyBot/i, domains: %w[mybot.example] }  # reverse DNS
@@ -93,6 +94,9 @@ bundle exec rake test        # offline, runs in any order
 bundle exec rake test:live   # hits the real crawler feeds; run it before a release
 RAILS_VERSION=7.1 bundle update activesupport activejob railties && bundle exec rake test
 ```
+
+The suite runs the real `Resolv` and `Net::HTTP` against a local DNS server and a
+local HTTPS server, so the network stack is covered without the internet.
 
 CI runs Ruby 3.2-3.4 against Rails 7.1-8.1. The live task catches a moved feed
 URL or changed format.
